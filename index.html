@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DSV Pharma — Shipment Pedigree Builder</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy:#0f1f3d; --navy-light:#1a3260;
+    --blue-bg:#dbeafe; --blue-text:#1e3a8a;
+    --green-bg:#dcfce7; --green-text:#166534;
+    --cyan-bg:#cffafe; --cyan-text:#155e75;
+    --amber-bg:#fef3c7; --amber-text:#92400e;
+    --red-bg:#fee2e2; --red-text:#991b1b;
+    --teal-bg:#f0fdfa; --teal-border:#99f6e4; --teal-text:#0f766e;
+    --gray-50:#f8fafc; --gray-100:#f1f5f9; --gray-200:#e2e8f0;
+    --gray-300:#cbd5e1; --gray-400:#94a3b8; --gray-500:#64748b;
+    --gray-700:#334155; --gray-900:#0f172a;
+    --font:'DM Sans',sans-serif; --mono:'DM Mono',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{min-height:100%;font-family:var(--font);font-size:14px;color:var(--gray-900);background:var(--gray-50)}
+  .layout{display:grid;grid-template-columns:250px 1fr;min-height:100vh}
+  .sidebar{background:var(--navy);display:flex;flex-direction:column;overflow:hidden}
+  .sidebar-inner{display:flex;flex-direction:column;height:100%;overflow-y:auto;padding:0 0 20px}
+  .main{overflow-y:auto;background:#fff}
+
+  /* Sidebar */
+  .sb-logo{padding:18px 18px 14px;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;gap:10px}
+  .sb-logo img{height:22px;width:auto;filter:brightness(0) invert(1)}
+  .sb-logo-tag{font-size:10px;font-weight:500;color:rgba(255,255,255,0.4);letter-spacing:.07em;text-transform:uppercase;margin-top:2px}
+  .sb-section{padding:14px 18px 0}
+  .sb-title{font-size:9px;font-weight:600;color:rgba(255,255,255,0.3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px}
+  .new-btn{width:100%;padding:8px 14px;font-size:12px;font-weight:500;background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.15);border-radius:7px;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:7px;transition:background .15s;margin-bottom:6px}
+  .new-btn:hover{background:rgba(255,255,255,0.18)}
+  .ped-list{display:flex;flex-direction:column;gap:3px;margin-top:8px}
+  .ped-item{padding:8px 10px;border-radius:6px;cursor:pointer;border:1px solid transparent;transition:background .12s}
+  .ped-item:hover{background:rgba(255,255,255,0.06)}
+  .ped-item.active{background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.12)}
+  .pi-ref{font-size:12px;font-weight:500;color:#fff;font-family:var(--mono)}
+  .pi-sub{font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px}
+  .pi-mode{display:inline-block;font-size:9px;padding:1px 6px;border-radius:10px;margin-top:3px;font-weight:600}
+  .pi-mode.air{background:rgba(96,165,250,0.2);color:#93c5fd}
+  .pi-mode.ocean{background:rgba(52,211,153,0.2);color:#6ee7b7}
+  .tpl-list{display:flex;flex-direction:column;gap:3px;margin-top:6px}
+  .tpl-btn{padding:6px 10px;border-radius:6px;border:none;background:transparent;cursor:pointer;font-size:11px;font-family:var(--font);text-align:left;color:rgba(255,255,255,0.45);transition:color .12s,background .12s;display:flex;align-items:center;gap:7px}
+  .tpl-btn:hover{color:rgba(255,255,255,0.9);background:rgba(255,255,255,0.06)}
+
+  /* Main */
+  .main-inner{max-width:980px;margin:0 auto;padding:28px 32px 60px}
+  .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 80px);gap:12px;color:var(--gray-400)}
+  .empty-state p{font-size:13px;text-align:center;max-width:220px;line-height:1.6}
+
+  /* Mode switcher */
+  .mode-switcher{display:inline-flex;background:var(--gray-100);border-radius:9px;padding:3px;gap:2px;margin-bottom:20px}
+  .mode-btn{padding:7px 20px;border-radius:7px;border:none;font-size:12px;font-weight:500;font-family:var(--font);cursor:pointer;background:transparent;color:var(--gray-500);transition:all .15s;display:flex;align-items:center;gap:6px}
+  .mode-btn.active{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.1)}
+  .mode-btn.active.air-active{color:#1d4ed8}
+  .mode-btn.active.ocean-active{color:#0f766e}
+
+  /* Page header */
+  .page-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--gray-100)}
+  .page-title{font-size:18px;font-weight:600;color:var(--gray-900);font-family:var(--mono)}
+  .page-sub{font-size:12px;color:var(--gray-500);margin-top:3px}
+  .temp-badge{display:inline-flex;align-items:center;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+  .temp-cold{background:var(--blue-bg);color:var(--blue-text)}
+  .temp-warm{background:var(--green-bg);color:var(--green-text)}
+  .temp-frozen{background:#e0f2fe;color:#075985}
+  .temp-reefer5{background:var(--cyan-bg);color:var(--cyan-text)}
+  .temp-reefer20{background:var(--amber-bg);color:var(--amber-text)}
+
+  /* Carrier pill selector */
+  .carrier-selector{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .carrier-pill{padding:5px 12px;border-radius:20px;border:1.5px solid var(--gray-200);background:#fff;cursor:pointer;font-size:11px;font-weight:500;color:var(--gray-500);font-family:var(--font);transition:all .15s;display:flex;align-items:center;gap:5px}
+  .carrier-pill:hover{border-color:var(--gray-400);color:var(--gray-700)}
+  .carrier-pill.selected{color:#fff;border-color:transparent}
+  .carrier-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+  /* Form */
+  .form-section{margin-bottom:20px}
+  .form-section-title{font-size:10px;font-weight:700;color:var(--gray-400);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--gray-100)}
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  .g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px}
+  .g5{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:12px}
+  .mt10{margin-top:10px}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field label{font-size:10px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.07em}
+  .field input,.field select{padding:8px 11px;font-size:13px;font-family:var(--font);border:1px solid var(--gray-200);border-radius:7px;background:#fff;color:var(--gray-900);transition:border-color .15s}
+  .field input:focus,.field select:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.08)}
+  .field input::placeholder{color:var(--gray-300)}
+
+  /* AWB row with lookup + deeplink */
+  .awb-row{display:flex;gap:8px;align-items:flex-end}
+  .awb-row .field{flex:1}
+  .btn-lookup{padding:8px 14px;font-size:12px;font-weight:500;font-family:var(--font);border:1px solid var(--gray-200);border-radius:7px;background:var(--gray-50);color:var(--gray-700);cursor:pointer;white-space:nowrap;height:38px;transition:background .15s}
+  .btn-lookup:hover{background:var(--gray-100)}
+  .btn-lookup:disabled{opacity:.4;cursor:not-allowed}
+  .btn-deeplink{padding:8px 12px;font-size:12px;font-weight:500;font-family:var(--font);border:none;border-radius:7px;color:#fff;cursor:pointer;white-space:nowrap;height:38px;transition:opacity .15s;display:flex;align-items:center;gap:5px}
+  .btn-deeplink:hover{opacity:.85}
+  .btn-deeplink:disabled{opacity:.3;cursor:not-allowed}
+
+  /* Toggle */
+  .toggle-row{display:flex;align-items:center;gap:10px;padding:9px 13px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px}
+  .toggle{position:relative;display:inline-block;width:36px;height:20px}
+  .toggle input{opacity:0;width:0;height:0}
+  .toggle-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:var(--gray-300);border-radius:20px;transition:.3s}
+  .toggle-slider:before{position:absolute;content:"";height:14px;width:14px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s}
+  .toggle input:checked+.toggle-slider{background:#0f766e}
+  .toggle input:checked+.toggle-slider:before{transform:translateX(16px)}
+
+  /* Steps table */
+  .steps-wrap{overflow-x:auto;border:1px solid var(--gray-200);border-radius:10px}
+  .steps-tbl{width:100%;border-collapse:collapse;min-width:920px}
+  .steps-tbl thead{background:var(--gray-50)}
+  .steps-tbl th{font-size:9px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.09em;padding:10px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--gray-200)}
+  .steps-tbl td{padding:5px 4px;border-bottom:1px solid var(--gray-100);vertical-align:middle}
+  .steps-tbl tr:last-child td{border-bottom:none}
+  .step-cell{padding:8px 12px}
+  .snum{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--navy);color:#fff;font-size:9px;font-weight:700;margin-right:8px;flex-shrink:0}
+  .snum.ocean-num{background:#0f766e}
+  .sname{font-size:12px;font-weight:500;color:var(--gray-900)}
+  .ssub{font-size:10px;color:var(--gray-400);margin-top:1px}
+  .steps-tbl input,.steps-tbl select{width:100%;padding:6px 8px;font-size:12px;font-family:var(--font);border:1px solid var(--gray-200);border-radius:6px;background:#fff;color:var(--gray-900)}
+  .steps-tbl input:focus,.steps-tbl select:focus{outline:none;border-color:#3b82f6}
+  .steps-tbl tr:hover td{background:#fafbff}
+  .ops-note{background:#f0fdfa !important}
+  .ops-note td{border-bottom:1px solid var(--teal-border) !important;padding:10px 12px !important}
+  .ops-note-inner{display:flex;align-items:flex-start;gap:10px}
+  .ops-title{font-size:11px;font-weight:600;color:var(--teal-text);margin-bottom:3px}
+  .ops-text{font-size:11px;color:#0f766e;line-height:1.5}
+
+  /* Action bar */
+  .act-bar{display:flex;gap:10px;margin-top:24px;align-items:center;padding-top:20px;border-top:1px solid var(--gray-100)}
+  .btn-del{padding:8px 16px;font-size:13px;font-weight:500;font-family:var(--font);color:#dc2626;background:transparent;border:1px solid #fca5a5;border-radius:7px;cursor:pointer;transition:background .15s}
+  .btn-del:hover{background:var(--red-bg)}
+  .spacer{flex:1}
+  .btn-save{padding:8px 20px;font-size:13px;font-weight:500;font-family:var(--font);background:#fff;color:var(--gray-700);border:1px solid var(--gray-200);border-radius:7px;cursor:pointer}
+  .btn-save:hover{background:var(--gray-50)}
+  .btn-pdf{padding:8px 20px;font-size:13px;font-weight:600;font-family:var(--font);background:var(--navy);color:#fff;border:none;border-radius:7px;cursor:pointer;display:flex;align-items:center;gap:7px}
+  .btn-pdf:hover{background:var(--navy-light)}
+
+  /* Status */
+  .status{margin-top:10px;padding:8px 12px;border-radius:7px;font-size:12px;display:none}
+  .status.info{display:block;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+  .status.ok{display:block;background:#f0fdf4;color:#166534;border:1px solid #bbf7d0}
+  .status.err{display:block;background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+  .status.warn{display:block;background:#fffbeb;color:#92400e;border:1px solid #fde68a}
+
+  /* Settings panel */
+  .settings-panel{background:var(--gray-50);border:1px solid var(--gray-200);border-radius:10px;padding:16px 18px;margin-bottom:20px}
+  .settings-title{font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+  .api-key-row{display:grid;grid-template-columns:180px 1fr auto;gap:8px;align-items:center;margin-bottom:8px}
+  .api-key-label{font-size:12px;font-weight:500;color:var(--gray-700)}
+  .api-key-input{padding:6px 10px;font-size:12px;font-family:var(--mono);border:1px solid var(--gray-200);border-radius:6px;background:#fff;color:var(--gray-900)}
+  .api-key-input:focus{outline:none;border-color:#3b82f6}
+  .api-status-dot{width:8px;height:8px;border-radius:50%;background:var(--gray-300);flex-shrink:0}
+  .api-status-dot.connected{background:#22c55e}
+  .api-status-dot.error{background:#ef4444}
+
+  ::-webkit-scrollbar{width:5px;height:5px}
+  ::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.12);border-radius:3px}
+  .btn-insert { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%; border:1.5px dashed #94a3b8; background:#fff; color:#94a3b8; font-size:14px; line-height:1; cursor:pointer; padding:0; font-family:var(--font); opacity:0; transition:opacity .15s, border-color .15s, color .15s; }
+  tr:hover .btn-insert { opacity:1; }
+  .btn-insert:hover { border-color:#3b82f6; color:#3b82f6; background:#eff6ff; }
+  .btn-remove { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%; border:1px solid #fca5a5; background:#fff; color:#ef4444; font-size:14px; line-height:1; cursor:pointer; padding:0; font-family:var(--font); }
+  .btn-remove:hover { background:#fee2e2; }
+  .custom-row td { background:#fefce8 !important; }
+  .custom-row:hover td { background:#fef9c3 !important; }
+  .snum-custom { background:#d97706 !important; }
+  .btn-add-step { display:flex; align-items:center; gap:6px; margin-top:10px; padding:7px 14px; font-size:12px; font-weight:500; font-family:var(--font); background:#fff; color:#475569; border:1.5px dashed #cbd5e1; border-radius:7px; cursor:pointer; }
+  .btn-add-step:hover { background:#f8fafc; border-color:#94a3b8; color:#0f172a; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-inner">
+      <div class="sb-logo">
+        <div style="font-size:18px;font-weight:700;color:#fff;letter-spacing:-0.5px;font-family:var(--mono)">PEDIGREE</div>
+        <div class="sb-logo-tag">Pharma Logistics</div>
+      </div>
+      <div class="sb-section" style="margin-top:14px">
+        <button class="new-btn" onclick="newPed('air')"><span style="font-size:15px">✈</span> New Air Pedigree</button>
+        <button class="new-btn" onclick="newPed('ocean')"><span style="font-size:15px">🚢</span> New Ocean Pedigree</button>
+        <button class="new-btn" style="background:rgba(255,255,255,0.05);font-size:11px" onclick="showSettings()">⚙ API Settings</button>
+      </div>
+      <div class="sb-section" style="margin-top:18px">
+        <div class="sb-title">Air Templates</div>
+        <div class="tpl-list" id="airTplList"></div>
+      </div>
+      <div class="sb-section" style="margin-top:14px">
+        <div class="sb-title">Ocean Templates</div>
+        <div class="tpl-list" id="oceanTplList"></div>
+      </div>
+      <div class="sb-section" style="margin-top:18px;flex:1">
+        <div class="sb-title">Saved Pedigrees</div>
+        <div class="ped-list" id="pedList"><div style="font-size:11px;color:rgba(255,255,255,0.25);padding:4px 2px">No pedigrees yet</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="main-inner" id="mainArea">
+      <div class="empty-state">
+        <div style="font-size:40px;opacity:.3">📦</div>
+        <p>Create a new pedigree or select one from the sidebar.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── LOGO ──
+// Logo removed — freight forwarder shown as text
+
+// ── CARRIER DEFINITIONS ──
+const AIR_CARRIERS = [
+  { name:'Lufthansa Cargo',     iata:'LH',  prefix:'020', color:'#003366', bg:'#FFCC00',
+    trackUrl: awb => `https://www.lufthansa-cargo.com/en/eservices/tracking?awb=${awb}`,
+    hasApi: true,  apiNote:'Requires LH Cargo API key',
+    hub: { iata:'FRA', name:'Frankfurt Airport', terminal:'Lufthansa Cargo Center, Frankfurt Airport (FRA)' },
+    tlvHandler: { name:'Swissport', location:'Swissport Cargo Services, Ben Gurion Airport, Terminal Area, TLV' } },
+  { name:'Air France Cargo',    iata:'AF',  prefix:'057', color:'#fff',    bg:'#002157',
+    trackUrl: awb => `https://www.airfrancecargo.com/tracking/?awbNumber=${awb}`,
+    hasApi: true,  apiNote:'Requires AF Cargo API key',
+    hub: { iata:'CDG', name:'Paris Charles de Gaulle', terminal:'Air France Cargo, Paris CDG Airport (CDG)' },
+    tlvHandler: { name:'Ben Gurion Cargo Terminal', location:'Ben Gurion Airport Cargo Terminal, TLV' } },
+  { name:'EL AL Cargo',         iata:'LY',  prefix:'114', color:'#fff',    bg:'#003399',
+    trackUrl: awb => `https://www.elal.com/en/Cargo/Pages/Online-Tracking.aspx?awb=${awb.replace('-','')}`,
+    hasApi: false,
+    tlvHandler: { name:'Maman', location:'Maman Cargo, Ben Gurion Airport, TLV' } },
+  { name:'Challenge Airlines IL',iata:'5C', prefix:'700', color:'#fff',    bg:'#E31E24',
+    trackUrl: awb => `https://www.challenge-group.com/tracking/?awb=${awb}`,
+    hasApi: false,
+    hub: { iata:'LGG', name:'Liège Airport', terminal:'Challenge Airlines Cargo Terminal, Liège Airport (LGG)' },
+    tlvHandler: { name:'Maman', location:'Maman Cargo, Ben Gurion Airport, TLV' } },
+  { name:'Etihad Cargo',          iata:'EY', prefix:'607', color:'#fff',    bg:'#bd8b13',
+    trackUrl: awb => `https://www.etihadcargo.com/en/configurations`,
+    hasApi: false,
+    hub: { iata:'DXB', name:'Dubai International Airport', terminal:'Etihad Cargo Terminal, Dubai International Airport (DXB)' },
+    tlvHandler: { name:'Maman', location:'Maman Cargo, Ben Gurion Airport, TLV' } },
+  { name:'United Airlines Cargo',iata:'UA', prefix:'016', color:'#fff',    bg:'#0066CC',
+    trackUrl: awb => `https://www.unitedcargo.com/en/us/tracking.html?awb=${awb}`,
+    hasApi: false,
+    tlvHandler: { name:'Ben Gurion Cargo Terminal', location:'Ben Gurion Airport Cargo Terminal, TLV' } },
+];
+
+const OCEAN_CARRIERS = [
+  { name:'MSC',     color:'#fff', bg:'#1a1a6e',
+    trackUrl: bl => `https://www.msc.com/en/track-a-shipment?trackingNumber=${bl}` },
+  { name:'ZIM',     color:'#fff', bg:'#003082',
+    trackUrl: bl => `https://www.zim.com/tools/track-a-shipment?number=${bl}` },
+  { name:'Maersk',  color:'#fff', bg:'#42B0D5',
+    trackUrl: bl => `https://www.maersk.com/tracking/${bl}` },
+  { name:'Hapag-Lloyd', color:'#fff', bg:'#E2661A',
+    trackUrl: bl => `https://www.hapag-lloyd.com/en/online-business/track/track-by-booking-solution.html?blno=${bl}` },
+  { name:'CMA CGM', color:'#fff', bg:'#003087',
+    trackUrl: bl => `https://www.cma-cgm.com/ebusiness/tracking/search?numero=${bl}` },
+  { name:'Evergreen',color:'#fff', bg:'#006400',
+    trackUrl: bl => `https://www.evergreen-line.com/static/jsp/cargoTracking.jsp?query_type=BL&query_value=${bl}` },
+];
+
+const AIR_STEPS = [
+  {id:'a1',name:'Pickup from supplier',                desc:'Origin pickup',             party:'Supplier',                   method:'Truck'},
+  {id:'a2',name:'Delivery to freight agent warehouse', desc:'Freight agent hub intake',  party:'Freight Agent',              method:'Truck'},
+  {id:'a3',name:'Delivery to airline warehouse',       desc:'Origin cargo terminal',     party:'Freight Agent',              method:'Truck'},
+  {id:'a4',name:'Flight — departure',                  desc:'Origin airport',            party:'Airline',                    method:'Flight'},
+  {id:'a5',name:'Arrival at TLV',                      desc:'Ben Gurion cargo terminal', party:'Destination Cargo Terminal', method:'Flight'},
+  {id:'a6',name:'Clearance & delivery',                desc:'Final mile to consignee',   party:'Freight Agent',              method:'Truck'},
+];
+const OCEAN_STEPS = [
+  {id:'o1',name:'Loading at shipper warehouse', desc:'Origin pickup',             party:'Supplier',                   method:'Truck',  fixed:false},
+  {id:'o2',name:'Origin port entry',            desc:'Port of loading terminal',  party:'Freight Agent',              method:'Truck',  fixed:false},
+  {id:'o3',name:'Port operations — loading',    desc:'Vessel loading ops',        party:'Shipping Line',              method:'Vessel', fixed:true,
+   note:'Reefer power off (30–60 min) for offload to quay → Loading to vessel (next day) → Reefer power on aboard vessel'},
+  {id:'o4',name:'Departure from origin port',  desc:'Vessel departure',           party:'Shipping Line',              method:'Vessel', fixed:false},
+  {id:'o5',name:'Arrival at destination port', desc:'POD / transhipment port',    party:'Shipping Line',              method:'Vessel', fixed:false},
+  {id:'o6',name:'Port operations — unloading', desc:'Vessel unloading ops',       party:'Destination Cargo Terminal', method:'Vessel', fixed:true,
+   note:'Reefer power off (30–60 min) for offload from vessel → Unloading (next day) → Reefer power on in destination port'},
+  {id:'o7',name:'Clearance & delivery to client',desc:'Final mile to consignee',  party:'Freight Agent',              method:'Truck',  fixed:false},
+];
+const PARTIES_AIR = ['Supplier','Freight Agent','Airline','Origin Cargo Terminal','Destination Cargo Terminal','Customs','Courier','Other'];
+const PARTIES_SEA = ['Supplier','Freight Agent','Shipping Line','Origin Cargo Terminal','Destination Cargo Terminal','Customs','Courier','Other'];
+const METHODS_AIR = ['Truck','Warehouse','Flight','Courier','Rail'];
+const METHODS_SEA = ['Truck','Warehouse','Vessel','Courier','Rail'];
+const AIR_TEMPS  = ['+2°C to +8°C','+15°C to +25°C','-20°C to -15°C','Ambient CRT'];
+const OCN_TEMPS  = ['+5°C (Reefer)','+20°C (Reefer)'];
+
+const AIR_TPLS = [
+  {name:'FRA → TLV',carrier:'Lufthansa Cargo',origin:'FRA',dest:'TLV',
+   locs:['Supplier warehouse, Frankfurt','DSV FRA hub, Cargo City Süd','Lufthansa Cargo Center, FRA','Frankfurt Airport (FRA)','Ben Gurion Airport Cargo Terminal, TLV','Freight agent facility, Tel Aviv']},
+  {name:'AMS → TLV',carrier:'EL AL Cargo',origin:'AMS',dest:'TLV',
+   locs:['Supplier warehouse, Amsterdam','Freight agent warehouse, Amsterdam Schiphol','EL AL Cargo, Schiphol Airport','Amsterdam Airport Schiphol (AMS)','Ben Gurion Airport Cargo Terminal, TLV','Freight agent facility, Tel Aviv']},
+  {name:'JFK → TLV',carrier:'EL AL Cargo',origin:'JFK',dest:'TLV',
+   locs:['Supplier warehouse, New York','DSV JFK hub, Building 75','EL AL Cargo, JFK','John F. Kennedy Intl Airport (JFK)','Ben Gurion Airport Cargo Terminal, TLV','Freight agent facility, Tel Aviv']},
+  {name:'EWR → TLV',carrier:'EL AL Cargo',origin:'EWR',dest:'TLV',
+   locs:['Supplier warehouse, New Jersey','DSV EWR hub','EL AL Cargo, Newark Liberty','Newark Liberty Intl Airport (EWR)','Ben Gurion Airport Cargo Terminal, TLV','Freight agent facility, Tel Aviv']},
+  {name:'BRU → TLV',carrier:'Challenge Airlines IL',origin:'BRU',dest:'TLV',
+   locs:['Supplier warehouse, Brussels','DSV BRU hub, Brucargo','Challenge Airlines Cargo, BRU','Brussels Airport (BRU)','Ben Gurion Airport Cargo Terminal, TLV','Freight agent facility, Tel Aviv']},
+  {name:'CDG → TLV',carrier:'Air France Cargo',origin:'CDG',dest:'TLV',
+   locs:['Supplier warehouse, Paris','DSV CDG hub','Air France Cargo, CDG','Paris Charles de Gaulle Airport (CDG)','Ben Gurion Airport Cargo Terminal, TLV','Freight agent facility, Tel Aviv']},
+  {name:'FCO → TLV',carrier:'United Airlines Cargo',origin:'FCO',dest:'TLV',
+   locs:['Supplier warehouse, Rome','DSV FCO hub','Cargo terminal, FCO','Rome Fiumicino Airport (FCO)','Ben Gurion Airport Cargo Terminal, TLV','Freight agent facility, Tel Aviv']},
+  {name:'BCN → TLV',carrier:'Etihad Cargo',origin:'BCN',dest:'TLV',
+   locs:['Supplier warehouse, Barcelona','DSV BCN hub','Cargo terminal, BCN','Barcelona El Prat Airport (BCN)','Ben Gurion Airport Cargo Terminal, TLV','Freight agent facility, Tel Aviv']},
+  {name:'LHR → TLV',carrier:'Lufthansa Cargo',origin:'LHR',dest:'TLV',
+   locs:['Supplier warehouse, London','Freight agent warehouse, Heathrow Cargo Centre','BA World Cargo, LHR','London Heathrow Airport (LHR)','Ben Gurion Airport Cargo Terminal, TLV','Freight agent facility, Tel Aviv']},
+];
+const OCN_TPLS = [
+  {name:'ANR → ASH',carrier:'MSC',pol:'ANR',pod:'ASH',
+   locs:['Supplier warehouse, Antwerp','Antwerp Gateway Terminal (ANR)','','Port of Antwerp (ANR)','Ashdod Port Container Terminal (ASH)','','Freight agent facility, Ashdod']},
+  {name:'RTM → ASH',carrier:'MSC',pol:'RTM',pod:'ASH',
+   locs:['Supplier warehouse, Rotterdam','Rotterdam ECT Terminal (RTM)','','Port of Rotterdam (RTM)','Ashdod Port Container Terminal (ASH)','','Freight agent facility, Ashdod']},
+  {name:'BCN → ASH',carrier:'ZIM',pol:'BCN',pod:'ASH',
+   locs:['Supplier warehouse, Barcelona','Barcelona Port Terminal (BCN)','','Port of Barcelona (BCN)','Ashdod Port Container Terminal (ASH)','','Freight agent facility, Ashdod']},
+  {name:'SHA → ASH',carrier:'ZIM',pol:'SHA',pod:'ASH',
+   locs:['Supplier warehouse, Shanghai','Shanghai Yangshan Port Terminal (SHA)','','Port of Shanghai (SHA)','Ashdod Port Container Terminal (ASH)','','Freight agent facility, Ashdod']},
+  {name:'ANR → HFA',carrier:'MSC',pol:'ANR',pod:'HFA',
+   locs:['Supplier warehouse, Antwerp','Antwerp Gateway Terminal (ANR)','','Port of Antwerp (ANR)','Haifa Bay Port Terminal (HFA)','','Freight agent facility, Haifa']},
+  {name:'RTM → HFA',carrier:'Maersk',pol:'RTM',pod:'HFA',
+   locs:['Supplier warehouse, Rotterdam','Rotterdam ECT Terminal (RTM)','','Port of Rotterdam (RTM)','Haifa Bay Port Terminal (HFA)','','Freight agent facility, Haifa']},
+];
+
+// ── STATE ──
+let peds = [];
+let curId = null;
+let apiKeys = {};
+const STORAGE_KEY = 'dsv-peds-v3';
+const KEYS_KEY = 'dsv-api-keys';
+
+function loadData() {
+  try { const d=localStorage.getItem(STORAGE_KEY); if(d) peds=JSON.parse(d); } catch(e){ peds=[]; }
+  try { const k=localStorage.getItem(KEYS_KEY); if(k) apiKeys=JSON.parse(k); } catch(e){ apiKeys={}; }
+  renderSidebar();
+}
+function saveData() { try{localStorage.setItem(STORAGE_KEY,JSON.stringify(peds));}catch(e){} }
+function saveKeys() { try{localStorage.setItem(KEYS_KEY,JSON.stringify(apiKeys));}catch(e){} }
+
+function getCarrierByPrefix(prefix) { return AIR_CARRIERS.find(c=>c.prefix===prefix)||null; }
+function getCarrierByName(name) { return AIR_CARRIERS.find(c=>c.name===name)||null; }
+function getOceanCarrierByName(name) { return OCEAN_CARRIERS.find(c=>c.name===name)||null; }
+function detectCarrierFromAWB(awb) {
+  if(!awb) return null;
+  const prefix = awb.replace(/[-\s]/g,'').slice(0,3);
+  return getCarrierByPrefix(prefix);
+}
+
+function renderSidebar() {
+  document.getElementById('airTplList').innerHTML = AIR_TPLS.map((t,i)=>
+    `<button class="tpl-btn" onclick="applyTpl('air',${i})"><span>✈</span>${t.name}</button>`).join('');
+  document.getElementById('oceanTplList').innerHTML = OCN_TPLS.map((t,i)=>
+    `<button class="tpl-btn" onclick="applyTpl('ocean',${i})"><span>🚢</span>${t.name}</button>`).join('');
+  const el=document.getElementById('pedList');
+  if(!peds.length){el.innerHTML='<div style="font-size:11px;color:rgba(255,255,255,0.25);padding:4px 2px">No pedigrees yet</div>';return;}
+  el.innerHTML=peds.map(p=>`
+    <div class="ped-item ${p.id===curId?'active':''}" onclick="openPed('${p.id}')">
+      <div class="pi-ref">${p.ref||'No ref'}</div>
+      <div class="pi-sub">${p.client||'—'} · ${(p.mode==='ocean'?p.pol:p.origin)||'?'}→${(p.mode==='ocean'?p.pod:p.dest)||'?'}</div>
+      <span class="pi-mode ${p.mode}">${p.mode==='air'?'✈ Air':'🚢 Ocean'}</span>
+    </div>`).join('');
+}
+
+function applyTpl(mode,i) {
+  if(!curId){newPed(mode);setTimeout(()=>applyTpl(mode,i),130);return;}
+  const p=getPed(); if(!p||p.mode!==mode) return;
+  if(mode==='air'){
+    const t=AIR_TPLS[i];
+    p.origin=t.origin; p.dest=t.dest; p.carrier=t.carrier;
+    t.locs.forEach((l,idx)=>{if(p.steps[idx])p.steps[idx].location=l;});
+    const c=getCarrierByName(t.carrier);
+    if(c){p.steps[3].party=c.name;p.steps[4].party=c.name;}
+  } else {
+    const t=OCN_TPLS[i];
+    p.pol=t.pol; p.pod=t.pod; p.shippingLine=t.carrier;
+    t.locs.forEach((l,idx)=>{if(p.steps[idx])p.steps[idx].location=l;});
+  }
+  saveData(); renderEditor();
+}
+
+function newPed(mode) {
+  const id='p'+Date.now();
+  const today=new Date().toISOString().split('T')[0];
+  const steps=(mode==='air'?AIR_STEPS:OCEAN_STEPS).map(s=>({id:s.id,date:'',location:'',party:s.party,method:s.method,notes:''}));
+  const base={id,mode,date:today,client:'',product:'',batchNo:'',temp:mode==='air'?'+2°C to +8°C':'+5°C (Reefer)',preparedBy:'',remarks:'',steps};
+  if(mode==='air') Object.assign(base,{ref:'',carrier:'',origin:'',dest:'TLV',flightNum:''});
+  else Object.assign(base,{ref:'',pol:'',pod:'ASH',shippingLine:'MSC',voyageNum:'',direct:true});
+  peds.unshift(base); curId=id; saveData(); renderSidebar(); renderEditor();
+}
+function openPed(id){curId=id;renderSidebar();renderEditor();}
+function getPed(){return peds.find(p=>p.id===curId);}
+
+// ── RENDER ──
+function renderEditor(){const p=getPed();if(!p)return;p.mode==='air'?renderAirEditor(p):renderOceanEditor(p);}
+
+function tempBadgeClass(temp){
+  if(!temp)return'temp-cold';
+  if(temp.includes('+15')||temp.includes('Ambient'))return'temp-warm';
+  if(temp.includes('-20'))return'temp-frozen';
+  if(temp.includes('+20'))return'temp-reefer20';
+  if(temp.includes('+5'))return'temp-reefer5';
+  return'temp-cold';
+}
+
+function carrierPillsHTML(selected) {
+  return AIR_CARRIERS.map(c=>{
+    const sel = selected===c.name;
+    return `<button class="carrier-pill ${sel?'selected':''}" 
+      style="${sel?`background:${c.bg};border-color:${c.bg};color:${c.color};`:''}"
+      onclick="selectCarrier('${c.name}')">
+      <span class="carrier-dot" style="background:${c.bg};${sel?'background:#fff;opacity:.6':''}"></span>
+      ${c.name}
+    </button>`;
+  }).join('');
+}
+
+function selectCarrier(name) {
+  var p=getPed(); if(!p) return;
+  p.carrier=name;
+  applyHubRouting(p);
+  saveData(); renderEditor();
+}
+
+function applyHubRouting(p) {
+  var c=getCarrierByName(p.carrier); if(!c) return;
+  var origin=p.origin||'';
+
+  // Always reset to the base 6 steps first (strip any previous hub steps)
+  // Keep data from existing base steps, remove hub-injected custom steps
+  var baseSteps=[];
+  var BASE=AIR_STEPS;
+  // Rebuild: collect data from p.steps matching base positions, preserve names from BASE
+  var baseData=[];
+  var bi=0;
+  for(var si=0;si<p.steps.length;si++){
+    if(!p.steps[si].hubInjected && bi<BASE.length){
+      var existingStep=p.steps[si];
+      existingStep.baseIdx=bi; // track original base index
+      baseData.push(existingStep);
+      bi++;
+    }
+  }
+  // Pad if needed
+  while(baseData.length<BASE.length){
+    var bs=BASE[baseData.length];
+    baseData.push({date:'',location:'',party:bs.party,method:bs.method,notes:'',baseIdx:baseData.length});
+  }
+  p.steps=baseData;
+
+  // Set carrier on departure and arrival steps
+  p.steps[3].party=c.name;
+  p.steps[4].party=c.name;
+
+  // If carrier has a hub and origin is NOT the hub, inject hub steps
+  if(c.hub && origin.toUpperCase()!==c.hub.iata.toUpperCase()){
+    var hub=c.hub;
+
+    // Step 4 becomes: flight to hub
+    p.steps[3].location=origin?(origin+' cargo terminal'):'';
+    p.steps[3].name='Flight — '+( origin||'origin')+' → '+hub.iata;
+
+    // Insert hub transit step after step 4 (index 3)
+    var hubArrival={
+      hubInjected:true, custom:true,
+      name:'Arrival & transit at '+hub.iata+' ('+hub.name+')',
+      date:'', location:hub.terminal,
+      party:c.name, method:'Flight', notes:''
+    };
+    var hubDeparture={
+      hubInjected:true, custom:true,
+      name:'Flight — '+hub.iata+' → '+(p.dest||'TLV'),
+      date:'', location:hub.terminal,
+      party:c.name, method:'Flight', notes:''
+    };
+
+    // Insert both hub steps between index 3 and 4
+    p.steps.splice(4,0,hubArrival,hubDeparture);
+
+    // Update the final arrival step (now at index 6) with correct TLV handler
+    var tlvH=c.tlvHandler||{name:'Ben Gurion Cargo Terminal',location:'Ben Gurion Airport Cargo Terminal, TLV'};
+    p.tlvHandler=tlvH.name;
+    p.steps[6].location=tlvH.location;
+    p.steps[6].party=tlvH.name;
+    // Ensure clearance & delivery step (now at index 7) retains its base definition
+    if(p.steps[7]) p.steps[7].baseIdx=5;
+
+    showStatus('Hub routing applied: '+origin+' → '+hub.iata+' → '+(p.dest||'TLV')+' via '+c.name,'ok');
+  } else {
+    // Direct route — just update locations
+    var tlv=c.tlvHandler||{name:'Ben Gurion Cargo Terminal',location:'Ben Gurion Airport Cargo Terminal, TLV'};
+    p.tlvHandler=tlv.name;
+    p.steps[3].location=origin?(origin+' cargo terminal'):'';
+    p.steps[3].name='Flight — departure';
+    p.steps[4].location=tlv.location;
+    p.steps[4].party=tlv.name;
+    if(c.hub && origin.toUpperCase()===c.hub.iata.toUpperCase()){
+      showStatus(c.name+' direct flight from hub '+c.hub.iata+' → '+(p.dest||'TLV')+' — Handler: '+tlv.name,'ok');
+    }
+  }
+}
+
+function renderAirEditor(p){
+  const tOpts=AIR_TEMPS.map(t=>`<option value="${t}" ${p.temp===t?'selected':''}>${t}</option>`).join('');
+  const detectedCarrier = p.carrier || (p.ref ? detectCarrierFromAWB(p.ref)?.name : '') || '';
+  const carrier = getCarrierByName(detectedCarrier);
+  const deepLinkBtn = carrier
+    ? `<button class="btn-deeplink" id="deepLinkBtn" style="background:${carrier.bg}" onclick="openDeepLink()" title="Open ${carrier.name} tracking page">
+        Open ${carrier.iata} Tracker ↗
+       </button>`
+    : `<button class="btn-deeplink" id="deepLinkBtn" style="background:var(--gray-300);cursor:not-allowed" disabled title="Select a carrier first">
+        Open Tracker ↗
+       </button>`;
+
+  document.getElementById('mainArea').innerHTML=`
+    <div class="mode-switcher">
+      <button class="mode-btn active air-active">✈ Air Freight</button>
+      <button class="mode-btn" onclick="switchMode('ocean')">🚢 Ocean Freight</button>
+    </div>
+    <div class="page-hdr">
+      <div><div class="page-title">${p.ref||'New Air Pedigree'}</div>
+      <div class="page-sub">${p.client||'Client not set'}${p.carrier?' · '+p.carrier:''}${p.origin&&p.dest?' · '+p.origin+'→'+p.dest:''}${p.tlvHandler?' · Arrival: '+p.tlvHandler:''}</div></div>
+      <span class="temp-badge ${tempBadgeClass(p.temp)}">${p.temp}</span>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Airline carrier</div>
+      <div class="carrier-selector">${carrierPillsHTML(detectedCarrier)}</div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Shipment details</div>
+      <div class="g3">
+        <div class="field"><label>Date</label><input type="date" value="${p.date||''}" onchange="upd('date',this.value)"></div>
+        <div class="field"><label>Client name</label><input type="text" placeholder="e.g. Teva Pharmaceutical" value="${esc(p.client)}" onchange="upd('client',this.value)"></div>
+        <div class="field"><label>Handling temperature</label><select onchange="upd('temp',this.value);renderEditor()">${tOpts}</select></div>
+      </div>
+      <div class="g3 mt10">
+        <div class="field"><label>Freight forwarder</label><input type="text" placeholder="e.g. DSV Air &amp; Sea Ltd." value="${esc(p.freightForwarder||'')}" onchange="upd('freightForwarder',this.value)"></div>
+      </div>
+      <div class="g2 mt10">
+        <div class="field"><label>Flight number</label><input type="text" placeholder="e.g. LY316" value="${esc(p.flightNum)}" onchange="upd('flightNum',this.value)"></div>
+        <div class="field"><label>Prepared by</label><input type="text" placeholder="Your name" value="${esc(p.preparedBy)}" onchange="upd('preparedBy',this.value)"></div>
+      </div>
+      <div class="g4 mt10">
+        <div class="awb-row" style="grid-column:span 2">
+          <div class="field" style="flex:1"><label>AWB number</label>
+            <input type="text" id="fRef" placeholder="e.g. 020-12345678" value="${esc(p.ref)}"
+              onchange="upd('ref',this.value);autoDetectCarrier(this.value)"></div>
+          <button class="btn-lookup" id="lookupBtn" onclick="doLookup()">AI Lookup ↗</button>
+          ${deepLinkBtn}
+        </div>
+        <div class="field"><label>Origin airport</label><input type="text" placeholder="e.g. FRA" value="${esc(p.origin)}" onchange="upd('origin',this.value)"></div>
+        <div class="field"><label>Destination airport</label><input type="text" placeholder="TLV" value="${esc(p.dest)}" onchange="upd('dest',this.value)"></div>
+      </div>
+      <div class="g3 mt10">
+        <div class="field"><label>Pickup date &amp; time</label><input type="datetime-local" value="${p.pickupDt||''}" onchange="upd('pickupDt',this.value);prefillPickup()"></div>
+        <div class="field"><label>Packaging type</label><select onchange="upd('packaging',this.value)">
+          <option value="" ${!p.packaging?'selected':''}>— Select —</option>
+          <option value="Passive shipper pallet" ${p.packaging==='Passive shipper pallet'?'selected':''}>Passive shipper pallet</option>
+          <option value="Thermal blankets" ${p.packaging==='Thermal blankets'?'selected':''}>Thermal blankets</option>
+          <option value="No packaging" ${p.packaging==='No packaging'?'selected':''}>No packaging</option>
+          <option value="Dry ice / gel packs" ${p.packaging==='Dry ice / gel packs'?'selected':''}>Dry ice / gel packs</option>
+          <option value="Electro-active" ${p.packaging==='Electro-active'?'selected':''}>Electro-active</option>
+        </select></div>
+        <div class="field"><label>Remarks</label><input type="text" placeholder="Optional notes" value="${esc(p.remarks)}" onchange="upd('remarks',this.value)"></div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Chain of custody — <span id="stepCountLabel">6 steps</span></div>
+      <div class="steps-wrap"><table class="steps-tbl">${stepsHeader()}<tbody id="stepsBody"></tbody></table></div>
+      <button class="btn-add-step" id="addStepBtn" onclick="addStep()" style="display:none"><span style="font-size:16px;line-height:1">+</span> Add step</button>
+    </div>
+    <div id="statusEl" class="status"></div>
+    <div class="act-bar">
+      <button class="btn-del" onclick="delPed()">Delete</button><div class="spacer"></div>
+      <button class="btn-save" onclick="doSave()">Save</button>
+      <button class="btn-pdf" onclick="exportPDF()">📄 Export PDF</button>
+    </div>`;
+  renderSteps();
+}
+
+function renderOceanEditor(p){
+  const tOpts=OCN_TEMPS.map(t=>`<option value="${t}" ${p.temp===t?'selected':''}>${t}</option>`).join('');
+  const podOpts=['ASH','HFA'].map(v=>`<option value="${v}" ${p.pod===v?'selected':''}>${v==='ASH'?'ASH — Ashdod':'HFA — Haifa'}</option>`).join('');
+  const lineOpts=['MSC','ZIM','Maersk','Hapag-Lloyd','CMA CGM','Evergreen','ONE','Yang Ming','HMM','PIL','Other']
+    .map(l=>`<option value="${l}" ${p.shippingLine===l?'selected':''}>${l}</option>`).join('');
+  const oceCarrier = getOceanCarrierByName(p.shippingLine);
+  const deepLinkBtn = oceCarrier
+    ? `<button class="btn-deeplink" style="background:${oceCarrier.bg}" onclick="openOceanDeepLink()" title="Open ${oceCarrier.name} tracking">Open ${oceCarrier.name} ↗</button>`
+    : '';
+
+  document.getElementById('mainArea').innerHTML=`
+    <div class="mode-switcher">
+      <button class="mode-btn" onclick="switchMode('air')">✈ Air Freight</button>
+      <button class="mode-btn active ocean-active">🚢 Ocean Freight</button>
+    </div>
+    <div class="page-hdr">
+      <div><div class="page-title">${p.ref||'New Ocean Pedigree'}</div>
+      <div class="page-sub">${p.client||'Client not set'}${p.pol&&p.pod?' · '+p.pol+'→'+p.pod:''} ${p.shippingLine?'· '+p.shippingLine:''}</div></div>
+      <span class="temp-badge ${tempBadgeClass(p.temp)}">${p.temp}</span>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Shipment details</div>
+      <div class="g3">
+        <div class="field"><label>Date</label><input type="date" value="${p.date||''}" onchange="upd('date',this.value)"></div>
+        <div class="field"><label>Client name</label><input type="text" placeholder="e.g. Teva Pharmaceutical" value="${esc(p.client)}" onchange="upd('client',this.value)"></div>
+        <div class="field"><label>Reefer temperature</label><select onchange="upd('temp',this.value);renderEditor()">${tOpts}</select></div>
+      </div>
+      <div class="g3 mt10">
+        <div class="field"><label>Freight forwarder</label><input type="text" placeholder="e.g. DSV Air &amp; Sea Ltd." value="${esc(p.freightForwarder||'')}" onchange="upd('freightForwarder',this.value)"></div>
+      </div>
+      <div class="g2 mt10">
+        <div class="field"><label>Shipping line</label><select onchange="upd('shippingLine',this.value);renderEditor()">${lineOpts}</select></div>
+        <div class="field"><label>Prepared by</label><input type="text" placeholder="Your name" value="${esc(p.preparedBy)}" onchange="upd('preparedBy',this.value)"></div>
+      </div>
+      <div class="g5 mt10">
+        <div class="awb-row" style="grid-column:span 2">
+          <div class="field" style="flex:1"><label>B/L number</label><input type="text" placeholder="e.g. MSCUXXXXXXXXX" value="${esc(p.ref)}" onchange="upd('ref',this.value)"></div>
+          ${deepLinkBtn}
+        </div>
+        <div class="field"><label>Voyage number</label><input type="text" placeholder="e.g. AX123W" value="${esc(p.voyageNum)}" onchange="upd('voyageNum',this.value)"></div>
+        <div class="field"><label>POL</label><input type="text" placeholder="e.g. ANR, RTM, SHA" value="${esc(p.pol)}" onchange="upd('pol',this.value)"></div>
+        <div class="field"><label>POD</label><select onchange="upd('pod',this.value)">${podOpts}</select></div>
+      </div>
+      <div class="g2 mt10">
+        <div class="field">
+          <label>Direct voyage</label>
+          <div class="toggle-row">
+            <span style="font-size:12px;font-weight:500;color:var(--gray-700)">${p.direct?'Direct voyage':'Transhipment'}</span>
+            <label class="toggle"><input type="checkbox" ${p.direct?'checked':''} onchange="upd('direct',this.checked);renderEditor()"><span class="toggle-slider"></span></label>
+          </div>
+        </div>
+        <div class="field"><label>Remarks</label><input type="text" placeholder="Optional notes" value="${esc(p.remarks)}" onchange="upd('remarks',this.value)"></div>
+      </div>
+      <div class="g2 mt10">
+        <div class="field"><label>Loading date &amp; time</label><input type="datetime-local" value="${p.pickupDt||''}" onchange="upd('pickupDt',this.value);prefillPickup()"></div>
+        <div class="field"><label>Packaging type</label><select onchange="upd('packaging',this.value)">
+          <option value="" ${!p.packaging?'selected':''}>— Select —</option>
+          <option value="Passive shipper pallet" ${p.packaging==='Passive shipper pallet'?'selected':''}>Passive shipper pallet</option>
+          <option value="Thermal blankets" ${p.packaging==='Thermal blankets'?'selected':''}>Thermal blankets</option>
+          <option value="No packaging" ${p.packaging==='No packaging'?'selected':''}>No packaging</option>
+          <option value="Dry ice / gel packs" ${p.packaging==='Dry ice / gel packs'?'selected':''}>Dry ice / gel packs</option>
+          <option value="Electro-active" ${p.packaging==='Electro-active'?'selected':''}>Electro-active</option>
+        </select></div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Chain of custody — <span id="stepCountLabel">7 steps</span></div>
+      <div class="steps-wrap"><table class="steps-tbl">${stepsHeader()}<tbody id="stepsBody"></tbody></table></div>
+      <button class="btn-add-step" id="addStepBtn" onclick="addStep()" style="display:none"><span style="font-size:16px;line-height:1">+</span> Add step</button>
+    </div>
+    <div id="statusEl" class="status"></div>
+    <div class="act-bar">
+      <button class="btn-del" onclick="delPed()">Delete</button><div class="spacer"></div>
+      <button class="btn-save" onclick="doSave()">Save</button>
+      <button class="btn-pdf" onclick="exportPDF()">📄 Export PDF</button>
+    </div>`;
+  renderSteps();
+}
+
+function switchMode(mode){
+  const p=getPed();if(!p)return;
+  if(p.mode===mode)return;
+  if(!confirm('Switch to '+mode+' mode? Steps will reset.'))return;
+  const steps=(mode==='air'?AIR_STEPS:OCEAN_STEPS).map(s=>({id:s.id,date:'',location:'',party:s.party,method:s.method,notes:''}));
+  p.mode=mode; p.steps=steps; p.temp=mode==='air'?'+2°C to +8°C':'+5°C (Reefer)';
+  if(mode==='ocean'){p.pol='';p.pod='ASH';p.shippingLine='MSC';p.voyageNum='';p.direct=true;delete p.origin;delete p.dest;delete p.flightNum;delete p.carrier;}
+  else{p.origin='';p.dest='TLV';p.flightNum='';p.carrier='';delete p.pol;delete p.pod;delete p.shippingLine;delete p.voyageNum;delete p.direct;}
+  saveData();renderSidebar();renderEditor();
+}
+
+function stepsHeader(){return`<thead><tr>
+  <th style="width:185px">Step</th><th style="width:125px">Date / time</th>
+  <th style="width:185px">Location / address</th><th style="width:140px">Responsible party</th>
+  <th style="width:105px">Temperature</th><th style="width:85px">Transport</th><th>Notes</th><th style="width:36px"></th>
+</tr></thead>`;}
+
+function renderSteps(){
+  var p=getPed(); var tbody=document.getElementById('stepsBody'); if(!tbody) return;
+  var isOcean=p.mode==='ocean';
+  var BASE=isOcean?OCEAN_STEPS:AIR_STEPS;
+  var PARTIES=isOcean?PARTIES_SEA:PARTIES_AIR;
+  var METHODS=isOcean?METHODS_SEA:METHODS_AIR;
+  var badgeCls=tempBadgeClass(p.temp);
+  var html='';
+  for(var i=0;i<p.steps.length;i++){
+    var st=p.steps[i];
+    var isCustom=!!st.custom;
+    var defIdx=(!isCustom)?(st.baseIdx!==undefined?st.baseIdx:i):null;
+    var def=(defIdx!==null&&defIdx<BASE.length)?BASE[defIdx]:null;
+    var isFixed=def&&def.fixed;
+    var isFlightStep=!isCustom&&def&&def.method==='Flight';
+    var stepNum=i+1;
+    var insertBtn='<button class="btn-insert" onclick="insertStepAfter('+i+')" title="Insert step below">+</button>';
+    if(isFixed){
+      html+='<tr class="ops-note"><td colspan="8"><div class="ops-note-inner">'
+        +'<span style="font-size:14px">⚙️</span>'
+        +'<div><div class="ops-title">Step '+stepNum+': '+def.name+'</div><div class="ops-text">'+def.note+'</div></div>'
+        +'<div style="margin-left:auto;display:flex;align-items:center;gap:8px;min-width:160px">'
+        +'<div><div style="font-size:9px;font-weight:600;color:#94a3b8;text-transform:uppercase;margin-bottom:3px">Date / time</div>'
+        +'<input type="datetime-local" style="padding:5px 7px;font-size:11px;border:1px solid #99f6e4;border-radius:6px;background:#fff;width:160px" value="'+(st.date||'')+'" onchange="updStep('+i+',\'date\',this.value)">'
+        +'</div>'+insertBtn+'</div>'
+        +'</div></td></tr>';
+      continue;
+    }
+    var name=isCustom?(st.name||'Additional step'):(def?def.name:'Step');
+    var desc=isCustom?'':(def?def.desc:'');
+    // For flight steps, exclude Supplier from responsible party options
+    var pList=(isFlightStep&&!isCustom)?PARTIES.filter(function(pt){return pt!=='Supplier';}):PARTIES;
+    var pOpts=''; for(var pi=0;pi<pList.length;pi++){pOpts+='<option value="'+pList[pi]+'"'+(st.party===pList[pi]?' selected':'')+'>'+pList[pi]+'</option>';}
+    // If current party is Supplier on a flight step, auto-correct it
+    if(isFlightStep&&!isCustom&&st.party==='Supplier') st.party='Airline';
+    var mOpts=''; for(var mi=0;mi<METHODS.length;mi++){mOpts+='<option value="'+METHODS[mi]+'"'+(st.method===METHODS[mi]?' selected':'')+'>'+METHODS[mi]+'</option>';}
+    var tempCell=(isFlightStep&&!isCustom)
+      ?'<span style="font-size:11px;color:#94a3b8;font-style:italic">N/A</span>'
+      :'<span class="temp-badge '+badgeCls+'" style="font-size:10px;padding:3px 8px">'+esc(p.temp||'')+'</span>';
+    var nameCell=isCustom
+      ?'<input type="text" value="'+esc(name)+'" placeholder="Step name" style="font-size:12px;font-weight:500;border:1px solid #e2e8f0;border-radius:5px;padding:3px 7px;width:145px" onchange="updStep('+i+',\'name\',this.value)">'
+      :'<div class="sname">'+name+'</div><div class="ssub">'+desc+'</div>';
+    var actionCell=insertBtn+(isCustom?'<button class="btn-remove" onclick="removeStep('+i+')" title="Remove step" style="margin-left:3px">×</button>':'');
+    html+='<tr class="'+(isCustom?'custom-row':'')+'">'
+      +'<td class="step-cell"><div style="display:flex;align-items:flex-start">'
+      +'<span class="snum'+(isCustom?' snum-custom':'')+'" style="'+(isOcean&&!isCustom?'background:#0f766e':'')+'">'+stepNum+'</span>'
+      +'<div>'+nameCell+'</div></div></td>'
+      +'<td><input type="datetime-local" value="'+(st.date||'')+'" onchange="updStep('+i+',\'date\',this.value)"></td>'
+      +'<td><input type="text" placeholder="Address / terminal" value="'+esc(st.location||'')+'" onchange="updStep('+i+',\'location\',this.value)"></td>'
+      +'<td><select onchange="updStep('+i+',\'party\',this.value)">'+pOpts+'</select></td>'
+      +'<td style="padding:5px 10px">'+tempCell+'</td>'
+      +'<td><select onchange="updStep('+i+',\'method\',this.value)">'+mOpts+'</select></td>'
+      +'<td><input type="text" placeholder="Notes / deviations" value="'+esc(st.notes||'')+'" onchange="updStep('+i+',\'notes\',this.value)"></td>'
+      +'<td style="padding:3px 6px;vertical-align:middle;white-space:nowrap">'+actionCell+'</td>'
+      +'</tr>';
+  }
+  tbody.innerHTML=html;
+  var lbl=document.getElementById('stepCountLabel');
+  if(lbl) lbl.textContent=p.steps.length+' step'+(p.steps.length===1?'':'s');
+  var addBtn=document.getElementById('addStepBtn');
+  if(addBtn) addBtn.style.display='flex';
+}
+
+
+// ── STEP INSERT / ADD / REMOVE ──
+function insertStepAfter(idx){
+  var p=getPed(); if(!p) return;
+  var newStep={custom:true,name:'Additional step',date:'',location:'',party:'Freight Agent',method:'Truck',notes:''};
+  p.steps.splice(idx+1,0,newStep);
+  saveData(); renderSteps();
+  setTimeout(function(){
+    var rows=document.querySelectorAll('#stepsBody tr');
+    var target=rows[idx+1];
+    if(target){target.style.transition='background .5s';target.style.background='#fef08a';setTimeout(function(){target.style.background='';},1200);}
+  },60);
+}
+function addStep(){
+  var p=getPed(); if(!p) return;
+  p.steps.push({custom:true,name:'Additional step',date:'',location:'',party:'Freight Agent',method:'Truck',notes:''});
+  saveData(); renderSteps();
+  setTimeout(function(){var w=document.querySelector('.steps-wrap');if(w)w.scrollTop=w.scrollHeight;},60);
+}
+function removeStep(idx){
+  var p=getPed(); if(!p) return;
+  if(!confirm('Remove this step?')) return;
+  p.steps.splice(idx,1);
+  saveData(); renderSteps();
+}
+
+// ── HELPERS ──
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function upd(k,v){const p=getPed();if(p)p[k]=v;}
+function updStep(i,k,v){const p=getPed();if(p&&p.steps[i])p.steps[i][k]=v;}
+function prefillPickup(){const p=getPed();if(p&&p.pickupDt&&!p.steps[0].date){p.steps[0].date=p.pickupDt;renderSteps();}}
+function doSave(){saveData();renderSidebar();showStatus('Saved.','ok');}
+function delPed(){
+  if(!confirm('Delete this pedigree?'))return;
+  peds=peds.filter(p=>p.id!==curId);curId=null;saveData();renderSidebar();
+  document.getElementById('mainArea').innerHTML='<div class="empty-state"><div style="font-size:40px;opacity:.3">📦</div><p>Create a new pedigree or select one from the sidebar.</p></div>';
+}
+function showStatus(msg,type){
+  const el=document.getElementById('statusEl');if(!el)return;
+  el.textContent=msg;el.className='status '+type;
+  if(type==='ok')setTimeout(()=>{if(el)el.className='status';},4000);
+}
+
+// ── AUTO-DETECT CARRIER FROM AWB PREFIX ──
+function autoDetectCarrier(awb){
+  const p=getPed();if(!p||p.mode!=='air')return;
+  const c=detectCarrierFromAWB(awb);
+  if(c && !p.carrier){
+    p.carrier=c.name;
+    p.steps[3].party=c.name;
+    p.steps[4].party=c.name;
+    renderEditor();
+    showStatus('Carrier auto-detected: '+c.name,'ok');
+  }
+}
+
+// ── DEEP LINK OPENERS ──
+function openDeepLink(){
+  const p=getPed();if(!p)return;
+  const c=getCarrierByName(p.carrier);if(!c)return;
+  const awb=p.ref||document.getElementById('fRef')?.value||'';
+  if(!awb){showStatus('Enter an AWB number first.','err');return;}
+  window.open(c.trackUrl(awb),'_blank');
+  showStatus('Opened '+c.name+' tracking page — results will appear in a new tab.','info');
+}
+function openOceanDeepLink(){
+  const p=getPed();if(!p)return;
+  const c=getOceanCarrierByName(p.shippingLine);if(!c)return;
+  const bl=p.ref||'';
+  if(!bl){showStatus('Enter a B/L number first.','err');return;}
+  window.open(c.trackUrl(bl),'_blank');
+  showStatus('Opened '+c.name+' tracking page in a new tab.','info');
+}
+
+// ── AI LOOKUP (for carriers without API, uses Claude to search) ──
+async function doLookup(){
+  const p=getPed();if(!p||p.mode!=='air')return;
+  const awb=document.getElementById('fRef')?.value?.trim();
+  if(!awb){showStatus('Enter an AWB number first.','err');return;}
+  upd('ref',awb);
+  const carrier=getCarrierByName(p.carrier)||detectCarrierFromAWB(awb);
+  const btn=document.getElementById('lookupBtn');
+  btn.disabled=true;btn.textContent='Searching...';
+  showStatus('Searching public tracking data for AWB '+awb+(carrier?' ('+carrier.name+')':'')+'...','info');
+  try{
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,
+        tools:[{type:'web_search_20250305',name:'web_search'}],
+        system:`You are a freight data assistant. Search the carrier's public tracking site for the AWB number. 
+Return ONLY raw JSON (no markdown): {"flightNumber":string|null,"airline":string|null,"departureAirport":string|null,"arrivalAirport":string|null,"departureDateTime":string|null,"arrivalDateTime":string|null,"departureTerminal":string|null,"arrivalTerminal":string|null,"status":string|null,"found":boolean}
+Dates ISO format. found=true only with real data.`,
+        messages:[{role:'user',content:`AWB: ${awb}. Carrier: ${carrier?carrier.name:'unknown'}. Origin: ${p.origin||'?'}. Dest: ${p.dest||'TLV'}. Search the carrier's tracking page. Return JSON only.`}]
+      })});
+    const data=await resp.json();
+    const txt=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
+    let info=null;
+    try{const m=txt.replace(/```json|```/g,'').trim().match(/\{[\s\S]*\}/);if(m)info=JSON.parse(m[0]);}catch(e){}
+    if(info&&info.found){
+      const ped=getPed();
+      if(info.departureDateTime)ped.steps[3].date=info.departureDateTime.replace('Z','').slice(0,16);
+      if(info.arrivalDateTime)ped.steps[4].date=info.arrivalDateTime.replace('Z','').slice(0,16);
+      ped.steps[3].location=info.departureTerminal||(info.departureAirport?info.departureAirport+' cargo terminal':'');
+      ped.steps[4].location=info.arrivalTerminal||'Ben Gurion Airport Cargo Terminal, TLV';
+      if(info.airline){ped.steps[3].party=info.airline;ped.steps[4].party=info.airline;if(!ped.carrier)ped.carrier=info.airline;}
+      if(info.departureAirport)ped.origin=info.departureAirport;
+      if(info.arrivalAirport)ped.dest=info.arrivalAirport;
+      if(info.flightNumber)ped.flightNum=info.flightNumber;
+      saveData();showStatus('Flight data found — steps 4 & 5 updated.','ok');renderEditor();
+    } else {
+      const c2=carrier||detectCarrierFromAWB(awb);
+      if(c2){
+        showStatus('No public data found via AI. Use "Open '+c2.iata+' Tracker ↗" to check on the carrier site directly.','warn');
+      } else {
+        showStatus('No tracking data found. Select a carrier and use the tracker button to check directly.','err');
+      }
+    }
+  }catch(e){showStatus('Lookup error: '+e.message,'err');}
+  const b=document.getElementById('lookupBtn');if(b){b.disabled=false;b.textContent='AI Lookup ↗';}
+}
+
+// ── SETTINGS ──
+function showSettings(){
+  document.getElementById('mainArea').innerHTML=`
+    <div style="max-width:600px">
+      <div style="font-size:18px;font-weight:600;margin-bottom:4px">API Settings</div>
+      <div style="font-size:12px;color:var(--gray-500);margin-bottom:24px">
+        Optional API keys for direct carrier integrations. These are stored locally in your browser only.
+      </div>
+      <div class="settings-panel">
+        <div class="settings-title">✈ Air freight API keys</div>
+        <div style="font-size:11px;color:var(--gray-500);margin-bottom:12px;line-height:1.6">
+          Register free at <a href="https://developer.lufthansa-cargo.com" target="_blank" style="color:#1d4ed8">developer.lufthansa-cargo.com</a> (LH) 
+          and <a href="https://developer.airfrancecargo.com" target="_blank" style="color:#1d4ed8">developer.airfrancecargo.com</a> (AF) to get API keys.
+          Keys enable direct data fetching without needing to open a browser tab.
+        </div>
+        <div class="api-key-row">
+          <div class="api-key-label">🟡 Lufthansa Cargo</div>
+          <input class="api-key-input" type="password" id="key-lh" placeholder="Paste LH Cargo API key..." value="${apiKeys.lh||''}">
+          <div class="api-status-dot ${apiKeys.lh?'connected':''}"></div>
+        </div>
+        <div class="api-key-row">
+          <div class="api-key-label">🔵 Air France Cargo</div>
+          <input class="api-key-input" type="password" id="key-af" placeholder="Paste AF Cargo API key..." value="${apiKeys.af||''}">
+          <div class="api-status-dot ${apiKeys.af?'connected':''}"></div>
+        </div>
+      </div>
+      <div class="settings-panel" style="margin-top:12px">
+        <div class="settings-title">🚢 Ocean tracking (deep links only)</div>
+        <div style="font-size:11px;color:var(--gray-500);line-height:1.6">
+          MSC and ZIM do not have freely accessible public APIs for external apps. 
+          The app will open their tracking pages directly with your B/L pre-filled. 
+          Maersk's free developer API (<a href="https://developer.maersk.com" target="_blank" style="color:#1d4ed8">developer.maersk.com</a>) can be added in a future update.
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px">
+        <button onclick="saveSettingsAndBack()" style="padding:8px 20px;font-size:13px;font-weight:500;background:var(--navy);color:#fff;border:none;border-radius:7px;cursor:pointer">Save & close</button>
+        <button onclick="renderEditor()" style="padding:8px 16px;font-size:13px;background:#fff;border:1px solid var(--gray-200);border-radius:7px;cursor:pointer;font-family:var(--font)">Cancel</button>
+      </div>
+    </div>`;
+}
+function saveSettingsAndBack(){
+  apiKeys.lh=document.getElementById('key-lh')?.value?.trim()||'';
+  apiKeys.af=document.getElementById('key-af')?.value?.trim()||'';
+  saveKeys();
+  if(curId) renderEditor();
+  else document.getElementById('mainArea').innerHTML='<div class="empty-state"><div style="font-size:40px;opacity:.3">📦</div><p>Create a new pedigree or select one from the sidebar.</p></div>';
+  alert('Settings saved.');
+}
+
+// ── PDF EXPORT ──
+function exportPDF(){
+  const p=getPed();if(!p)return;
+  doSave();
+  const isOcean=p.mode==='ocean';
+  const badgeCls=tempBadgeClass(p.temp);
+  const tStyle=badgeCls==='temp-warm'?'background:#dcfce7;color:#166534':
+    badgeCls==='temp-frozen'?'background:#e0f2fe;color:#075985':
+    badgeCls==='temp-reefer20'?'background:#fef3c7;color:#92400e':
+    badgeCls==='temp-reefer5'?'background:#cffafe;color:#155e75':
+    'background:#dbeafe;color:#1e3a8a';
+  const STEPS=isOcean?OCEAN_STEPS:AIR_STEPS;
+  const carrier=!isOcean?getCarrierByName(p.carrier):null;
+
+  var allRows='';
+  for(var ri=0;ri<p.steps.length;ri++){
+    var pst=p.steps[ri];
+    var pdef=(pst.custom||ri>=STEPS.length)?null:STEPS[ri];
+    var pdt=pst.date?pst.date.replace('T',' '):'—';
+    var isFlightRow=pdef&&((p.mode==='air'&&(ri===3||ri===4))||(p.mode==='ocean'&&(ri===3||ri===4)));
+    if(pdef&&pdef.fixed){
+      allRows+='<tr style="background:#f0fdfa"><td colspan="7" style="padding:10px;border-bottom:1px solid #99f6e4">'
+        +'<span style="font-weight:700;color:#0f766e">'+(ri+1)+'. '+pdef.name+' &nbsp;</span>'
+        +'<span style="color:#0f766e">'+pdef.note+'</span>'
+        +'<span style="float:right;font-size:10px;color:#64748b">Date: '+pdt+'</span>'
+        +'</td></tr>';
+      continue;
+    }
+    var pname=pst.custom?(pst.name||'Additional step'):(pdef?pdef.name:'Step');
+    var tempCell2=isFlightRow
+      ?'<span style="color:#94a3b8;font-style:italic">N/A</span>'
+      :'<span style="'+tStyle+';padding:2px 8px;border-radius:20px;font-size:9px;font-weight:700">'+p.temp+'</span>';
+    allRows+='<tr'+(pst.custom?' style="background:#fefce8"':'')+'>'      +'<td><span class="sn" style="'+(pst.custom?'background:#d97706':'')+'">'+(ri+1)+'</span>'+(pst.custom?'<em>'+pname+'</em>':pname)+'</td>'      +'<td>'+pdt+'</td><td>'+(pst.location||'—')+'</td>'      +'<td>'+(pst.party||(pdef?pdef.party:'—'))+'</td>'      +'<td>'+tempCell2+'</td>'      +'<td>'+(pst.method||(pdef?pdef.method:'—'))+'</td>'      +'<td style="color:#64748b">'+(pst.notes||'')+'</td></tr>';
+  }
+  const rows=allRows
+
+  const carrierBadge = carrier ? `<span style="background:${carrier.bg};color:${carrier.color};padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;margin-left:8px">${carrier.name}</span>` : '';
+
+  const metaExtra=isOcean?`
+    <div><div class="ml">Shipping line</div><div class="mv">${p.shippingLine||'—'}</div></div>
+    <div><div class="ml">B/L number</div><div class="mv">${p.ref||'—'}</div></div>
+    <div><div class="ml">Voyage number</div><div class="mv">${p.voyageNum||'—'}</div></div>
+    <div><div class="ml">POL → POD</div><div class="mv">${p.pol||'—'} → ${p.pod||'—'}</div></div>
+    <div><div class="ml">Direct voyage</div><div class="mv">${p.direct?'Yes — Direct':'No — Transhipment'}</div></div>`
+    :`<div><div class="ml">AWB number</div><div class="mv">${p.ref||'—'}</div></div>
+     <div><div class="ml">Carrier</div><div class="mv">${p.carrier||'—'}</div></div>
+     <div><div class="ml">Route</div><div class="mv">${p.origin||'—'} → ${p.dest||'TLV'}</div></div>
+     <div><div class="ml">Flight number</div><div class="mv">${p.flightNum||'—'}</div></div>`;
+
+  const html=`<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>Shipment Pedigree — ${p.ref||'N/A'}</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;font-size:11px;color:#0f172a;padding:28px 36px;background:#fff}
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;border-bottom:2px solid #0f1f3d;margin-bottom:18px}
+.logo{height:30px}.mode-tag{font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px;margin-left:10px;${isOcean?'background:#f0fdfa;color:#0f766e':'background:#dbeafe;color:#1e3a8a'}}
+.doc-r{text-align:right}.doc-title{font-size:17px;font-weight:700;color:#0f1f3d;letter-spacing:-.5px;font-family:'DM Mono',monospace}
+.doc-sub{font-size:10px;color:#64748b;margin-top:3px}
+.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:10px 16px;margin-bottom:18px;padding:14px 16px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0}
+.ml{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8;margin-bottom:3px}
+.mv{font-size:12px;font-weight:500;color:#0f172a;font-family:'DM Mono',monospace}
+.sec{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#64748b;margin:16px 0 8px;padding-bottom:5px;border-bottom:1px solid #e2e8f0}
+table{width:100%;border-collapse:collapse}
+th{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#475569;padding:8px;border-top:1.5px solid #0f1f3d;border-bottom:1.5px solid #0f1f3d;text-align:left;background:#f8fafc}
+td{padding:8px;border-bottom:1px solid #e2e8f0;font-size:10.5px;vertical-align:middle}
+tr:nth-child(even) td{background:#fafafa}
+.sn{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:${isOcean?'#0f766e':'#0f1f3d'};color:#fff;font-size:8px;font-weight:700;margin-right:6px;vertical-align:middle}
+.sig{display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:22px;padding-top:14px;border-top:1px solid #e2e8f0}
+.sig-box{font-size:9px;color:#94a3b8;padding-top:5px;border-top:1px solid #cbd5e1}
+.footer{margin-top:14px;padding-top:10px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;font-size:9px;color:#94a3b8}
+@media print{body{padding:14px 22px}@page{margin:1cm;size:A4 landscape}}
+</style></head><body>
+<div class="hdr">
+  <div style="display:flex;align-items:center">
+    <div style="font-size:20px;font-weight:700;color:#0f1f3d;letter-spacing:-0.5px;font-family:'DM Mono',monospace">${p.freightForwarder||''}</div>
+    <span class="mode-tag">${isOcean?'🚢 Ocean Reefer':'✈ Air Freight'}</span>
+    ${carrierBadge}
+  </div>
+  <div class="doc-r">
+    <div class="doc-title">Shipment Pedigree</div>
+    <div class="doc-sub">GDP Pharmaceutical ${isOcean?'Cold Chain Ocean':'Air Freight'} Documentation</div>
+    <div class="doc-sub" style="margin-top:2px">Document date: ${p.date||new Date().toISOString().split('T')[0]}</div>
+  </div>
+</div>
+<div class="meta">
+  <div><div class="ml">Client</div><div class="mv" style="font-family:'DM Sans',sans-serif">${p.client||'—'}</div></div>
+  ${metaExtra}
+  <div><div class="ml">Temperature</div><div class="mv"><span style="${tStyle};padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;font-family:'DM Sans',sans-serif">${p.temp}</span></div></div>
+  <div><div class="ml">Packaging type</div><div class="mv" style="font-family:'DM Sans',sans-serif">${p.packaging||'—'}</div></div>
+  <div><div class="ml">TLV cargo handler</div><div class="mv" style="font-family:'DM Sans',sans-serif">${p.tlvHandler||'Ben Gurion Cargo Terminal'}</div></div>
+  <div><div class="ml">Prepared by</div><div class="mv" style="font-family:'DM Sans',sans-serif">${p.preparedBy||'—'}</div></div>
+  <div><div class="ml">Freight forwarder</div><div class="mv" style="font-family:'DM Sans',sans-serif">${p.freightForwarder||'—'}</div></div>
+  ${p.remarks?`<div style="grid-column:span 2"><div class="ml">Remarks</div><div class="mv" style="font-family:'DM Sans',sans-serif">${p.remarks}</div></div>`:''}
+</div>
+<div class="sec">Chain of custody — shipment steps</div>
+<table><thead><tr>
+  <th>Step</th><th>Date / Time</th><th>Location / Address</th>
+  <th>Responsible Party</th><th>Temperature</th><th>Transport</th><th>Notes / Deviations</th>
+</tr></thead><tbody>${rows}</tbody></table>
+<div class="sig">
+  <div class="sig-box">Prepared by: ${p.preparedBy||'_____________________'}<br><span style="font-size:8px">Signature &amp; date</span></div>
+  <div class="sig-box">Reviewed by (QA): _____________________<br><span style="font-size:8px">Signature &amp; date</span></div>
+  <div class="sig-box">Company stamp: _____________________<br><span style="font-size:8px">Official seal</span></div>
+</div>
+<div class="footer">
+  <span>${p.freightForwarder||''} — Pharma Logistics — Confidential GDP Documentation</span>
+  <span>Generated: ${new Date().toLocaleString('en-IL')}</span>
+</div>
+</body></html>`;
+  const w=window.open('','_blank','width=1200,height=900');
+  w.document.write(html);w.document.close();setTimeout(()=>w.print(),800);
+}
+
+loadData();
+</script>
+</body>
+</html>
