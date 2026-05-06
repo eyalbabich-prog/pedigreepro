@@ -664,6 +664,11 @@ async function runAnalysis() {
 
   if(!temp && !origin && !dest && !context) { alert('Fill in at least temperature and origin/destination.'); return; }
 
+  if(!getApiKey()) {
+    showStatus('Please set your Anthropic API key in ⚙ API Settings first.', 'err');
+    switchTab('pedigree'); showSettings();
+    return;
+  }
   var btn = document.getElementById('analyzeBtn');
   if(btn) { btn.disabled = true; btn.innerHTML = '<span class="thinking-anim">Analyzing</span>'; }
 
@@ -681,7 +686,7 @@ async function runAnalysis() {
 
   try {
     var resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST', headers:{'Content-Type':'application/json'},
+      method:'POST', headers:getApiHeaders(),
       body: JSON.stringify({
         model:'claude-sonnet-4-20250514', max_tokens:1500,
         tools:[{type:'web_search_20250305',name:'web_search'}],
@@ -792,6 +797,17 @@ function loadData() {
 }
 function saveData() { try{localStorage.setItem(STORAGE_KEY,JSON.stringify(peds.slice(0,10)));}catch(e){} }
 function saveKeys() { try{localStorage.setItem(KEYS_KEY,JSON.stringify(apiKeys));}catch(e){} }
+
+function getApiKey() {
+  return (apiKeys && apiKeys.anthropic) ? apiKeys.anthropic : '';
+}
+
+function getApiHeaders() {
+  var key = getApiKey();
+  var headers = {'Content-Type':'application/json'};
+  if(key) headers['x-api-key'] = key;
+  return headers;
+}
 
 function getCarrierByPrefix(prefix) { return AIR_CARRIERS.find(c=>c.prefix===prefix)||null; }
 function getCarrierByName(name) { return AIR_CARRIERS.find(c=>c.name===name)||null; }
@@ -1376,7 +1392,7 @@ async function doOceanLookup(){
   showStatus('Searching '+(p.shippingLine||'carrier')+' tracking for '+(bl?'B/L '+bl:'container '+cntr)+'...','info');
   try{
     var trackUrl=carrier?carrier.trackUrl(ref, bl?'bl':'cntr'):'';
-    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
+    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:getApiHeaders(),
       body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1200,
         tools:[{type:'web_search_20250305',name:'web_search'}],
         system:'You are a freight assistant. Search the shipping line tracking page for the B/L or container number. Return ONLY raw JSON (no markdown): {"vesselName":string|null,"voyageNumber":string|null,"departurePOL":string|null,"arrivalPOD":string|null,"etd":string|null,"eta":string|null,"departureTerminal":string|null,"arrivalTerminal":string|null,"transshipmentPort":string|null,"status":string|null,"found":boolean}. ISO dates. found=true only with real data.',
@@ -1421,7 +1437,7 @@ async function doHawbLookup(){
   showStatus('Searching '+(fwdName||'forwarder')+' tracking for HAWB '+hawb+'...','info');
   try{
     var trackUrl=fwd?fwd.trackUrl(hawb):'';
-    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
+    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:getApiHeaders(),
       body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,
         tools:[{type:'web_search_20250305',name:'web_search'}],
         system:'You are a freight assistant. Search the freight forwarder tracking page for the HAWB number. Return ONLY raw JSON (no markdown): {"flightNumber":string|null,"airline":string|null,"departureAirport":string|null,"arrivalAirport":string|null,"departureDateTime":string|null,"arrivalDateTime":string|null,"departureLocation":string|null,"arrivalLocation":string|null,"status":string|null,"origin":string|null,"destination":string|null,"found":boolean}. ISO dates. found=true only with real data.',
@@ -1553,7 +1569,7 @@ async function doLookup(){
   btn.disabled=true;btn.textContent='Searching...';
   showStatus('Searching public tracking data for AWB '+awb+(carrier?' ('+carrier.name+')':'')+'...','info');
   try{
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:getApiHeaders(),
       body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,
         tools:[{type:'web_search_20250305',name:'web_search'}],
         system:`You are a freight data assistant. Search the carrier's public tracking site for the AWB number. 
@@ -1852,6 +1868,11 @@ async function runAnalysis() {
 
   if(!temp && !origin && !dest && !context) { alert('Fill in at least temperature and origin/destination.'); return; }
 
+  if(!getApiKey()) {
+    showStatus('Please set your Anthropic API key in ⚙ API Settings first.', 'err');
+    switchTab('pedigree'); showSettings();
+    return;
+  }
   var btn = document.getElementById('analyzeBtn');
   if(btn) { btn.disabled = true; btn.innerHTML = '<span class="thinking-anim">Analyzing</span>'; }
 
@@ -1869,7 +1890,7 @@ async function runAnalysis() {
 
   try {
     var resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST', headers:{'Content-Type':'application/json'},
+      method:'POST', headers:getApiHeaders(),
       body: JSON.stringify({
         model:'claude-sonnet-4-20250514', max_tokens:1500,
         tools:[{type:'web_search_20250305',name:'web_search'}],
@@ -1980,6 +2001,17 @@ function loadData() {
 }
 function saveData() { try{localStorage.setItem(STORAGE_KEY,JSON.stringify(peds.slice(0,10)));}catch(e){} }
 function saveKeys() { try{localStorage.setItem(KEYS_KEY,JSON.stringify(apiKeys));}catch(e){} }
+
+function getApiKey() {
+  return (apiKeys && apiKeys.anthropic) ? apiKeys.anthropic : '';
+}
+
+function getApiHeaders() {
+  var key = getApiKey();
+  var headers = {'Content-Type':'application/json'};
+  if(key) headers['x-api-key'] = key;
+  return headers;
+}
 
 function getCarrierByPrefix(prefix) { return AIR_CARRIERS.find(c=>c.prefix===prefix)||null; }
 function getCarrierByName(name) { return AIR_CARRIERS.find(c=>c.name===name)||null; }
@@ -2564,7 +2596,7 @@ async function doOceanLookup(){
   showStatus('Searching '+(p.shippingLine||'carrier')+' tracking for '+(bl?'B/L '+bl:'container '+cntr)+'...','info');
   try{
     var trackUrl=carrier?carrier.trackUrl(ref, bl?'bl':'cntr'):'';
-    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
+    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:getApiHeaders(),
       body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1200,
         tools:[{type:'web_search_20250305',name:'web_search'}],
         system:'You are a freight assistant. Search the shipping line tracking page for the B/L or container number. Return ONLY raw JSON (no markdown): {"vesselName":string|null,"voyageNumber":string|null,"departurePOL":string|null,"arrivalPOD":string|null,"etd":string|null,"eta":string|null,"departureTerminal":string|null,"arrivalTerminal":string|null,"transshipmentPort":string|null,"status":string|null,"found":boolean}. ISO dates. found=true only with real data.',
@@ -2609,7 +2641,7 @@ async function doHawbLookup(){
   showStatus('Searching '+(fwdName||'forwarder')+' tracking for HAWB '+hawb+'...','info');
   try{
     var trackUrl=fwd?fwd.trackUrl(hawb):'';
-    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
+    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:getApiHeaders(),
       body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,
         tools:[{type:'web_search_20250305',name:'web_search'}],
         system:'You are a freight assistant. Search the freight forwarder tracking page for the HAWB number. Return ONLY raw JSON (no markdown): {"flightNumber":string|null,"airline":string|null,"departureAirport":string|null,"arrivalAirport":string|null,"departureDateTime":string|null,"arrivalDateTime":string|null,"departureLocation":string|null,"arrivalLocation":string|null,"status":string|null,"origin":string|null,"destination":string|null,"found":boolean}. ISO dates. found=true only with real data.',
@@ -2741,7 +2773,7 @@ async function doLookup(){
   btn.disabled=true;btn.textContent='Searching...';
   showStatus('Searching public tracking data for AWB '+awb+(carrier?' ('+carrier.name+')':'')+'...','info');
   try{
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:getApiHeaders(),
       body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,
         tools:[{type:'web_search_20250305',name:'web_search'}],
         system:`You are a freight data assistant. Search the carrier's public tracking site for the AWB number. 
